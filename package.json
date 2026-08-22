@@ -10,11 +10,13 @@
     "build": "npm run build -w @fm/shared && npm run build -w @fm/api && npm run build -w @fm/web",
     "build:api": "npm run build -w @fm/shared && npm run build -w @fm/api",
     "build:web": "npm run build -w @fm/web",
+    "start": "npm run start:worker",
     "start:api": "npm run start -w @fm/api",
     "start:web": "npm run start -w @fm/web",
     "start:worker": "npm run start:worker -w @fm/api"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "packageManager": "npm@10.9.2"
 }
