@@ -1,0 +1,17 @@
+{
+  "name": "finance-management",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @fm/api & npm run dev -w @fm/web",
+    "build": "npm run build -w @fm/shared && npm run build -w @fm/api && npm run build -w @fm/web",
+    "build:api": "npm run build -w @fm/shared && npm run build -w @fm/api",
+    "build:web": "npm run build -w @fm/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

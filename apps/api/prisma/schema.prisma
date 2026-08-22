@@ -1,0 +1,279 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum MemberRelation {
+  SELF
+  SPOUSE
+  CHILD
+  PARENT
+  SIBLING
+  OTHER
+}
+
+enum AssetType {
+  EQUITY
+  MUTUAL_FUND
+  SIP
+  NPS
+  SUKANYA
+  PPF
+  EPF
+  FD
+  RD
+  LAND
+  REAL_ESTATE
+  GOLD
+  SGB
+  BOND
+  INSURANCE
+  CASH
+  OTHER
+}
+
+enum HoldingSource {
+  MANUAL
+  CAS
+  ANGEL_ONE
+}
+
+enum PlanType {
+  SIP
+  RD
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  SIP_INSTALLMENT
+  CONTRIBUTION
+  INTEREST
+  DIVIDEND
+  ADJUSTMENT
+}
+
+enum CasImportStatus {
+  UPLOADED
+  PARSING
+  READY_FOR_REVIEW
+  CONFIRMED
+  FAILED
+}
+
+enum BrokerType {
+  ANGEL_ONE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships FamilyMembership[]
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  name      String
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships       FamilyMembership[]
+  members           FamilyMember[]
+  holdings          Holding[]
+  plans             RecurringPlan[]
+  transactions      Transaction[]
+  brokerConnections BrokerConnection[]
+  casImports        CasImport[]
+  aiInsights        AiInsight[]
+  invites           Invite[]
+}
+
+model FamilyMembership {
+  id        String          @id @default(cuid())
+  familyId  String
+  userId    String
+  role      MembershipRole
+  createdAt DateTime        @default(now())
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId])
+  @@index([userId])
+}
+
+model FamilyMember {
+  id           String         @id @default(cuid())
+  familyId     String
+  fullName     String
+  relation     MemberRelation
+  dateOfBirth  DateTime?
+  panEncrypted String?
+  panLast4     String?
+  userId       String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  holdings          Holding[]
+  plans             RecurringPlan[]
+  transactions      Transaction[]
+  brokerConnections BrokerConnection[]
+  casImports        CasImport[]
+
+  @@index([familyId])
+}
+
+model Holding {
+  id           String        @id @default(cuid())
+  familyId     String
+  memberId     String
+  assetType    AssetType
+  name         String
+  symbol       String?
+  isin         String?
+  folio        String?
+  quantity     Decimal       @db.Decimal(20, 6)
+  avgCost      Decimal       @db.Decimal(20, 4)
+  currentPrice Decimal       @db.Decimal(20, 4)
+  currency     String        @default("INR")
+  metadata     Json?
+  source       HoldingSource @default(MANUAL)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member       FamilyMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([familyId])
+  @@index([memberId])
+  @@index([isin])
+}
+
+model RecurringPlan {
+  id         String   @id @default(cuid())
+  familyId   String
+  memberId   String
+  holdingId  String?
+  type       PlanType
+  name       String
+  amount     Decimal  @db.Decimal(20, 2)
+  dayOfMonth Int
+  startDate  DateTime
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member FamilyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model Transaction {
+  id        String          @id @default(cuid())
+  familyId  String
+  memberId  String
+  holdingId String?
+  type      TransactionType
+  amount    Decimal         @db.Decimal(20, 4)
+  quantity  Decimal?        @db.Decimal(20, 6)
+  note      String?
+  occurredAt DateTime
+  createdAt DateTime        @default(now())
+
+  family  Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member  FamilyMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  holding Holding?      @relation(fields: [holdingId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+}
+
+model PriceQuote {
+  id        String    @id @default(cuid())
+  quoteKey  String    @unique
+  assetType AssetType
+  price     Decimal   @db.Decimal(20, 4)
+  asOf      DateTime
+  source    String
+}
+
+model BrokerConnection {
+  id             String     @id @default(cuid())
+  familyId       String
+  memberId       String
+  broker         BrokerType @default(ANGEL_ONE)
+  credentialsEnc String
+  lastSyncAt     DateTime?
+  lastError      String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member FamilyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, broker])
+}
+
+model CasImport {
+  id         String          @id @default(cuid())
+  familyId   String
+  memberId   String
+  fileKey    String
+  status     CasImportStatus @default(UPLOADED)
+  parsedJson Json?
+  error      String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member FamilyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model AiInsight {
+  id        String   @id @default(cuid())
+  familyId  String
+  memberId  String?
+  content   Json
+  createdAt DateTime @default(now())
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model Invite {
+  id         String         @id @default(cuid())
+  familyId   String
+  email      String
+  role       MembershipRole @default(MEMBER)
+  token      String         @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime       @default(now())
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+}

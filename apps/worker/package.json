@@ -1,0 +1,10 @@
+{
+  "name": "@fm/worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev:worker -w @fm/api",
+    "build": "npm run build -w @fm/api",
+    "start": "npm run start:worker -w @fm/api"
+  }
+}
